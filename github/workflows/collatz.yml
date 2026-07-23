@@ -1,0 +1,51 @@
+name: Collatz Background Search
+
+# 実行タイミング:
+# - 6時間ごとに自動実行（cronはUTC基準。日本時間からは9時間後ろにずれます）
+# - Actionsタブから手動でも実行可能（workflow_dispatch）
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+# checkpointやログをリポジトリにコミットし直すための書き込み権限
+permissions:
+  contents: write
+
+jobs:
+  run-collatz:
+    runs-on: ubuntu-latest
+    # GitHub Actionsの1ジョブあたりの上限は6時間。安全マージンを取って5時間45分に設定
+    timeout-minutes: 360
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Pythonをセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 依存関係をインストール
+        run: pip install -r requirements.txt
+
+      - name: キエーザ数の探索を実行（5時間45分の制限付き）
+        env:
+          COLLATZ_MAX_RUNTIME_SECONDS: "20700"  # 5時間45分
+        run: python collatz_background_search.py
+
+      - name: 1997継ぎ足しの探索を実行（残り時間ぶん、最大10分の制限付き）
+        env:
+          COLLATZ_MAX_RUNTIME_SECONDS: "600"  # 10分（お試し用。増やしたければ調整してください）
+        run: python collatz_1997_chain.py
+
+      - name: 進捗をリポジトリにコミット
+        run: |
+          git config user.name "collatz-bot"
+          git config user.email "collatz-bot@users.noreply.github.com"
+          git add collatz_checkpoint.json collatz_records.log collatz_ANOMALY.log \
+                   collatz_1997_checkpoint.json collatz_1997_records.log collatz_1997_ANOMALY.log \
+                   2>/dev/null || true
+          git commit -m "自動進捗保存 $(date -u '+%Y-%m-%d %H:%M UTC')" || echo "変更なし、コミットをスキップ"
+          git push
