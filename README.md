@@ -23,6 +23,8 @@ random_m_test.py                        §5a: tests whether self-similarity of
                                          N_k is even necessary (it isn't)
 merging_residue_classes.py              §5b: classifies which residues mod 2^k
                                          provably force n, n+1 to merge
+general_merging_test.py                 §5c: extends §5b's merging-class
+                                         analysis to general (L, x)
 cycle_search.c                          unrelated side-quest: exhaustive
                                          search for non-trivial Collatz cycles
                                          via parity-vector fixed points (GMP,
@@ -231,6 +233,37 @@ remainder presumably comes from pairs whose total stopping times coincide
 without their trajectories ever literally merging (harder to prove, not yet
 understood).
 
+## 5c. Synthesis: it's all about how "simple" x's own trajectory is
+
+Extending §5b's merging-class analysis from the classical `L=1, x=1` case to
+general `(L, x)` ties §4 and §5b together into one picture (see
+`general_merging_test.py`):
+
+| x | own trajectory | merging-class fraction (up to mod 512) |
+|---|---|---|
+| alternating, `x=2730` (L=12) | reaches `2^L` in 2 steps (§4) | converges cleanly to **exactly 1/2** (count = `2^(k-1)-1` for modulus `2^k`) |
+| generic, `x=2905` (L=12) | no special structure | **zero** merging classes found even at modulus 512 |
+
+So the same property that made the alternating family special in §4 — its
+own Collatz trajectory being unusually short and predictable — is *also*
+exactly what makes algebraically-provable merging classes abundant and easy
+to find for that `x`. For "generic" `x` with a messy, unpredictable own
+trajectory, provable merges are much rarer (or require far larger moduli to
+detect), and the observed agreement between `steps(m)` and `steps(2^L m+x)`
+for such `x` is presumably dominated by the harder, still-unexplained
+"coincidental" mechanism from §5b rather than by literal trajectory merging.
+
+This suggests a single underlying informal principle across §2–§5b:
+
+> **The more predictable/short `x`'s own Collatz trajectory is, the more of
+> the `diff = L` phenomenon can be explained by provable algebraic merging,
+> and the higher its observed frequency ceiling.**
+
+This is stated as an informal empirical pattern, not a theorem — turning it
+into one (e.g. a precise statement relating some complexity measure of `x`'s
+own trajectory to the growth rate of the merging-class fraction) is the
+natural next step, left open here.
+
 ## 6. Relation to existing theory
 
 This sits inside the well-studied **2-adic extension of the Collatz map**
@@ -256,6 +289,7 @@ python3 big_survey.py                 # 105-block systematic sweep
 python3 exact_power_test.py           # isolates the "exact 2^L" condition
 python3 random_m_test.py              # §5a: self-similarity isn't necessary
 python3 merging_residue_classes.py    # §5b: classifies merging residue classes
+python3 general_merging_test.py       # §5c: extends §5b to general (L, x)
 ```
 
 No external dependencies beyond CPython 3.8+.
