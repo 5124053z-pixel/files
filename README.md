@@ -416,3 +416,102 @@ claim (a different model asserted a specific number was a "periodic point"
 of the Collatz map via a fabricated formula, which did not survive direct
 computational verification). The real phenomenon documented here was found
 in the process of checking that claim.
+
+
+
+
+
+# Addendum: Coupling-Theoretic Follow-up to §5
+
+Status: amateur/independent investigation, computationally verified, not peer-reviewed. Continuation of the original README's §5 (open questions on the `steps(n) == steps(n+1)` agreement rate). This addendum reframes the problem using probabilistic **coupling theory** (coalescing Markov chains / mixing-time arguments) and reports new computational findings, including a correction of an earlier claim made mid-investigation.
+
+## 0. Motivation
+
+The original README left an open question at §5c: is the "raw" agreement rate `P(steps(n) = steps(n+1))` fully explained by literal trajectory merging, or is some of it "coincidental" (both n and n+1 reaching 1 in the same number of steps via genuinely different intermediate values)? §5b/§5d's merging-class analysis suggested only a partial (and slowly, unclearly growing) fraction was explained this way.
+
+This addendum tests that question directly by simulation rather than by exhaustive residue-class enumeration, framing it in coupling-theoretic language: define
+
+    tau_couple(n) = min { t >= 1 : T^t(n) = T^t(n+1) }
+
+using the raw (unaccelerated) Collatz map T, searched strictly before either trajectory reaches 1. This is the "coalescing coupling" of the two trajectories. §5b's merging-class theorem is a special case: it proves `tau_couple` is uniformly bounded (= 3) on the whole residue class n ≡ 4 (mod 8).
+
+## 1. A definitional trap (documented for honesty)
+
+An initial version of this experiment defined `tau_couple` by letting the raw map run indefinitely, *including after reaching 1* (where it cycles 1 → 4 → 2 → 1 → ...). This is wrong: it conflates literal early merging with accidental phase-alignment in the post-convergence cycle, and gave a spuriously high "100% coupling" reading that mixed two different phenomena.
+
+A second version fixed the cycling issue but capped the search at `steps(n) + small_buffer`, which is a **tautology**: if `steps(n) = steps(n+1) = s`, then by definition `T^s(n) = T^s(n+1) = 1`, so a merge is *guaranteed* to be found by time `s` regardless of whether anything interesting happened earlier. Reporting "100% merge fraction" from this setup is not a finding — it restates the agreement condition.
+
+**Corrected definition:** search only `t ∈ [1, s)`, strictly before either trajectory reaches 1. A merge found here is a genuine early coincidence of values, not a trivial simultaneous arrival at 1. All results below use this corrected definition.
+
+## 2. Result: early merging appears to fully explain agreement (up to N = 6×10⁷)
+
+Exhaustive check, `n = 1 .. N`, computing `steps(n)`, `steps(n+1)`, and (when they agree) searching for a strict early merge:
+
+| N | agreeing pairs | early-merge fraction (of agreeing pairs) | exceptions |
+|---|---|---|---|
+| 1,000,000 | 477,245 | 100.0000% | 0 |
+| 5,000,000 | 2,454,559 | 100.0000% | 0 |
+| 15,000,000 | 7,492,334 | 100.0000% | 0 |
+| 60,000,000 | 30,547,761 | 100.0000% | 0 |
+
+Zero exceptions across ~30.5 million agreeing pairs. This is stronger than what §5c speculated — no "coincidental, non-merging" agreement was found in this range at all. If this holds in general, it would mean:
+
+    steps(n) = steps(n+1)   <=>   tau_couple(n) < steps(n)
+
+i.e. agreement of total stopping times is *equivalent* to (not just partially explained by) literal early coalescence — collapsing §5c's distinction between "provable merging" and "coincidental agreement" into a single mechanism, at least at these scales.
+
+**Caveats (real ones):**
+- This is exhaustive verification up to 6×10⁷, not a proof. A counterexample could exist beyond this range.
+- The mean early-merge time drifts upward with N (16.0 → 18.3 → 19.8 → 21.7 across the four scales above), indicating a heavier tail at larger scale — consistent with, but not proof of, the pattern continuing to hold.
+- Python-only implementation currently caps practical N around 10⁸; extending further requires the C/GMP tooling below.
+
+## 3. Coupling-time distribution: clean exponential tail (at fixed, small scale)
+
+Conditional on early merging, the survival function `P(tau_couple > t | merged)` fits an exponential decay extremely well:
+
+- N = 300,000: decay rate γ ≈ 0.0421, R² = 0.9987, half-life ≈ 16.4 steps
+- Min observed early-merge time: 3 (matches the §5b theorem: n ≡ 4 mod 8 merges at exactly t = 3)
+
+In coupling-theory language (Aldous–Diaconis coupling inequality: `d_TV(t) ≤ 2·P(tau_couple > t)`), this γ plays the role of a **spectral-gap-like decay constant** for the pair-coupling process — a concrete, fittable analogue of a Markov chain mixing-time bound.
+
+## 4. New open question: does γ scale with bit length?
+
+A small-scale (N=3000 samples per window) test of `tau_couple`'s decay rate γ across increasing bit-length windows of n showed γ *shrinking* with scale in a way consistent with γ ∝ 1/bits:
+
+| bits | agree_frac | early_merge_frac | mean τ | γ | R² |
+|---|---|---|---|---|---|
+| 32 | 0.4087 | 1.0000 | 44.35 | 0.02049 | 0.976 |
+| 64 | 0.5047 | 1.0000 | 84.51 | 0.00878 | 0.970 |
+| 128 | 0.5903 | 1.0000 | 166.84 | 0.00408 | 0.957 |
+
+`γ × bits` is roughly constant (~0.66, 0.56, 0.52) across this small range — i.e. mean coupling time appears to scale **linearly** with bit length, not staying O(1) as scale grows. This is a distinct phenomenon from §5b's merging-class fraction (which grows only logarithmically in k) — here we're measuring per-pair coupling speed, not whether a whole residue class merges uniformly, and it appears to slow down (linearly) with scale even though the early-merge *fraction* stays at 100%.
+
+**This is preliminary** — only 3 small windows, 3000 samples each. Needs the full-scale run described in §5 below to confirm the 1/bits scaling and check whether early-merge fraction stays at 100% at much larger bit lengths (target: up to 65536 bits, matching the scale of the original §5d large_scale_sampling.c).
+
+## 5. Tooling produced this session
+
+- `coupling_experiment3.py`, `coupling_experiment4.py`, `coupling_experiment5.py` — Python, exhaustive verification up to N=6×10⁷ (memoized total-stopping-time cache for speed), used for §2–3 above.
+- `coupling_scaling.c` — C + GMP + OpenMP, windowed random sampling across bit-length scales (32 to 65536 bits by default, easily extended), outputs per-window CSV of `(agree, merge_time)` pairs. Compiles with `gcc -O3 -fopenmp -o coupling_scaling coupling_scaling.c -lgmp -lm`.
+- `fit_gamma.py` — post-processes the C program's CSV output, fits γ per bit-length window via log-linear regression on the survival function tail, reports agreement fraction, early-merge fraction, mean coupling time, γ, and R² per window.
+
+Usage:
+```
+./coupling_scaling 20000 run1
+python3 fit_gamma.py run1 32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536
+```
+
+## 6. Summary of what's now established vs. still open
+
+**Established (exhaustive, up to N=6×10⁷):**
+- Every observed `steps(n)=steps(n+1)` pair coalesces to a literal common value strictly before reaching 1.
+- Conditional on merging, `tau_couple` has a clean, well-fit exponential tail at fixed small scale (R² > 0.99).
+
+**Open (needs the C/GMP run at scale):**
+- Whether early-merge fraction stays at 100% for much larger n (say, 1000+ bit numbers), or whether exceptions appear.
+- Whether γ(bits) truly follows a 1/bits law, or something else (log, power-law) once tested over a wider, more heavily-sampled range.
+- Whether a clean theoretical argument (e.g. via the finite-state "carry" structure of the 3x+1 map read bit-serially, as in Bernstein–Lagarias) can *derive* the 1/bits scaling rather than just fit it — this would upgrade §4's observation from empirical to proved, in the spirit of §5b's rigorous n≡4(mod 8) result.
+
+## Acknowledgments
+
+This addendum was developed collaboratively with an AI assistant (Claude); all code was executed and its output verified before being reported here, including catching and correcting a tautological definition error mid-investigation (§1). Please independently re-verify before citing.
+
