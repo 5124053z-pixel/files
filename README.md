@@ -187,18 +187,6 @@ time — first drop below the starting value — by finite congruence classes,
 but *total* stopping time is not known to reduce to finite congruence data,
 which is presumably why this is hard.)
 
-## 6. Relation to existing theory
-
-This sits inside the well-studied **2-adic extension of the Collatz map**
-(Bernstein & Lagarias 1996; see also the notion of "Collatz cyclic numbers"
-associated with periodic parity vectors). As `k → ∞`, `N_k` converges 2-adically
-to the rational 2-adic integer `α = -x/(2^L - 1)`. This connects the present
-observation to known machinery, but the specific claim about the *frequency*
-of `diff_k = L`, as far as I can tell, is not stated in the literature I
-searched (Bernstein–Lagarias 1996; Lagarias periodicity conjecture papers;
-Hercher 2023; Eliahou 1993; Simons & de Weger). Corrections/pointers to prior
-work are very welcome.
-
 ## 5b. A proved partial result for the L=1 base case
 
 Pushing on §5a's classical `n`, `n+1` case directly: a clean, fully provable
@@ -242,6 +230,18 @@ fraction, but not all, of the classical adjacent-agreement phenomenon; the
 remainder presumably comes from pairs whose total stopping times coincide
 without their trajectories ever literally merging (harder to prove, not yet
 understood).
+
+## 6. Relation to existing theory
+
+This sits inside the well-studied **2-adic extension of the Collatz map**
+(Bernstein & Lagarias 1996; see also the notion of "Collatz cyclic numbers"
+associated with periodic parity vectors). As `k → ∞`, `N_k` converges 2-adically
+to the rational 2-adic integer `α = -x/(2^L - 1)`. This connects the present
+observation to known machinery, but the specific claim about the *frequency*
+of `diff_k = L`, as far as I can tell, is not stated in the literature I
+searched (Bernstein–Lagarias 1996; Lagarias periodicity conjecture papers;
+Hercher 2023; Eliahou 1993; Simons & de Weger). Corrections/pointers to prior
+work are very welcome.
 
 ## 7. Reproducing this
 
