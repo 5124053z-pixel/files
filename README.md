@@ -233,15 +233,60 @@ of merging classes, as `k` grows:
 | 131072 | 51105 | 39.0% |
 | 262144 | 103358 | 39.4% |
 | 524288 | 208840 | 39.8% |
+| 1048576 | 421643 | 40.2% |
+| 2097152 | 850737 | 40.6% |
+| 4194304 | 1715546 | 40.9% |
+| 8388608 | 3457791 | 41.2% |
+| 16777216 | 6966495 | 41.5% |
+| 33554432 | 14030369 | 41.8% |
+| 67108864 | 28247507 | 42.1% |
+| 134217728 | 56854178 | 42.4% |
 
-The increments shrink with a ratio that stabilizes around 0.92–0.93 (not
-approaching 1), so this does **not** look like it converges to the full
-~50% seen empirically. Extrapolating geometrically from the latest points
-gives a limit of roughly **44–46%** — i.e. provable algebraic merging
-appears to account for the large majority (~90%) of the classical
-adjacent-agreement rate, but a residual few percentage points likely come
-from a different, still-unexplained mechanism (pairs whose total stopping
-times coincide without their trajectories ever literally merging).
+**Important correction, found after more computation (thanks to a reader
+running this on their own machine, up to `k=27`).** The increments do *not*
+shrink at a constant geometric ratio. `increment(k) × k` is close to
+constant (≈7.2, slowly drifting down) across `k=18..27`, which looks more
+like `increment(k) ≈ C/k` — i.e. logarithmic-type growth,
+`frac(k) ≈ frac(k0) + C·ln(k/k0)`, not geometric convergence to a fixed
+limit. **A naive geometric extrapolation (which an earlier version of this
+README used to guess "44-46%") is therefore not reliable**, and the true
+asymptotic behavior of this fraction as `k → ∞` is currently **unknown**.
+
+**A further complication: the classical "~50%" itself is not a settled
+constant.** Checking `steps(n) == steps(n+1)` directly for `n` up to
+10,000,000 (not just the merging-class abstraction) shows the raw agreement
+rate drifting steadily upward with `n` — 45.0% below 100k, 47.7% below 1M,
+49.6% below 10M, and *already past 50%* (50.4%) in the window
+`n ∈ [9,000,000, 10,000,000]`. So the OEIS comment's "~50%" appears to be a
+snapshot of a quantity that was itself still climbing at the point it was
+measured, not a stable limiting value.
+
+**Comparing the two quantities directly at matching scale** (same `k`,
+i.e. `N = 2^k` vs modulus `2^k`) shows they are related but not equal, and
+the gap between them is *not* constant either:
+
+| k | N=2^k | raw agreement rate | merging-class fraction | gap |
+|---|---|---|---|---|
+| 16 | 65,536 | 44.52% | 38.51% | 6.01pt |
+| 18 | 262,144 | 46.31% | 39.43% | 6.88pt |
+| 20 | 1,048,576 | 47.77% | 40.21% | 7.56pt |
+| 22 | 4,194,304 | 48.95% | 40.90% | 8.05pt |
+| 24 | 16,777,216 | 50.03% | 41.52% | 8.50pt |
+
+The fraction of raw agreement explained by provable merging actually
+*decreases* slightly with scale (86.5% → 83.0% across this range), which is
+the opposite of what I originally hoped to find.
+
+**Honest bottom line.** Both the classical adjacent-agreement rate and the
+merging-class fraction appear to drift upward indefinitely (at least within
+the computationally reachable range, `k` up to 27), without settling at any
+constant found so far, and a naive extrapolation is not trustworthy given
+the apparent logarithmic-type growth. Whether either quantity has a
+well-defined limit at all — and if so, what it is, and whether the two are
+asymptotically related by a clean formula — is, as far as I can tell, a
+genuinely open question. This investigation stops here for now with that
+question explicitly unresolved, rather than with a (likely wrong) guessed
+number.
 
 ## 5c. Synthesis: it's all about how "simple" x's own trajectory is
 
