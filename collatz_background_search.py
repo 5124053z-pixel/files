@@ -3,7 +3,7 @@
 =====================================================
 
 やっていること:
-- 大きな奇数から1つずつ順番にコラッツ数列を計算し、1に収束することを確認
+- 毎回ランダムな大きな奇数を選び、コラッツ数列を計算して1に収束することを確認
 - ステップ数（軌道の長さ）が過去最高を更新したら records.log に記録
 - 定期的に進捗を checkpoint.json に保存し、PCを再起動しても続きから再開可能
 - バッチ処理 + sleep でCPU負荷を意図的に抑える（他の作業を邪魔しない）
@@ -43,7 +43,6 @@ NICE_LEVEL = 19                 # プロセス優先度（Unix系。19が最も�
 MAX_STEPS = 10_000_000          # これを超えても1に到達しない場合は「異常」として扱い、無限ループを防ぐ
 CACHE_MAX_SIZE = 500_000        # 軌道の「合流」を利用した高速化キャッシュの最大サイズ
 DIGITS = len(str(START_NUMBER))  # 新しくランダムな数を選ぶときに使う桁数
-RESEED_EVERY = 2_000             # これだけ連番でチェックしたら、新しいランダムな数に切り替える
 _env_runtime = os.environ.get("COLLATZ_MAX_RUNTIME_SECONDS")
 MAX_RUNTIME_SECONDS = float(_env_runtime) if _env_runtime else None  # Noneなら無制限
 KTABLE_BITS = 18                # kステップテーブルの k。大きいほど速いが構築コストとメモリが増える
@@ -169,16 +168,13 @@ def load_checkpoint():
     if os.path.exists(CHECKPOINT_FILE):
         with open(CHECKPOINT_FILE, "r") as f:
             data = json.load(f)
-        print(f"チェックポイントを読み込みました: n={data['current']}, "
-              f"最長記録={data['best_steps']}ステップ")
-        data.setdefault("since_reseed", 0)  # 古いcheckpointとの互換性
+        print(f"チェックポイントを読み込みました: 最長記録={data['best_steps']}ステップ, "
+              f"これまでに{data['total_checked']:,}個チェック済み")
         return data
     return {
-        "current": START_NUMBER if START_NUMBER % 2 == 1 else START_NUMBER + 1,
         "best_steps": 0,
         "best_n": None,
         "total_checked": 0,
-        "since_reseed": 0,
     }
 
 
@@ -208,14 +204,13 @@ def log_anomaly(n, steps):
 def main():
     lower_priority()
     state = load_checkpoint()
-    n = state["current"]
     best_steps = state["best_steps"]
     start_time = time.time()
 
     print("探索を開始します。停止するには Ctrl+C を押してください。")
     if MAX_RUNTIME_SECONDS:
         print(f"制限時間: {MAX_RUNTIME_SECONDS/3600:.1f}時間で自動的に安全終了します。")
-    print(f"開始位置: {n} ({len(str(n))}桁)")
+    print(f"毎回{DIGITS}桁のランダムな奇数を選んで探索します。")
 
     global running
     while running:
@@ -228,12 +223,7 @@ def main():
             if not running:
                 break
 
-            if state["since_reseed"] >= RESEED_EVERY:
-                n = random_start()
-                state["since_reseed"] = 0
-                print(f"→ プラトー回避のため、新しいランダムな数に切り替えます: "
-                      f"{n} ({len(str(n))}桁)")
-
+            n = random_start()
             steps, max_val, hit_limit = collatz_steps(n)
 
             if hit_limit:
@@ -244,12 +234,10 @@ def main():
                 print(f"⚠️  異常検知: n={n} が {steps:,}ステップを超えても収束しません")
                 print(f"    {ANOMALY_FILE} に記録し、安全のため探索を停止します。")
                 print("=" * 60)
-                state["current"] = n  # この数を再検証できるよう、進めずに保存
                 save_checkpoint(state)
                 return
 
             state["total_checked"] += 1
-            state["since_reseed"] += 1
 
             if steps > best_steps:
                 best_steps = steps
@@ -258,17 +246,13 @@ def main():
                 log_record(n, steps, max_val)
                 print(f"新記録！ n={n} ({len(str(n))}桁) -> {steps}ステップ")
 
-            n += 2  # 奇数だけ調べれば十分（偶数は自明にすぐ半分になるため）
-
-        state["current"] = n
         save_checkpoint(state)
 
         # ここで意図的に休憩を入れてCPU負荷を抑える
         time.sleep(SLEEP_SECONDS)
 
     save_checkpoint(state)
-    print(f"終了しました。次回はn={n}から再開します。"
-          f"（チェックしたのは合計{state['total_checked']:,}個）")
+    print(f"終了しました。（チェックしたのは合計{state['total_checked']:,}個）")
 
 
 if __name__ == "__main__":
