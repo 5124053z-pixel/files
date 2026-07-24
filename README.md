@@ -223,15 +223,25 @@ of merging classes, as `k` grows:
 | 128 | 39 | 30.5% |
 | 256 | 82 | 32.0% |
 | 512 | 170 | 33.2% |
+| 1024 | 351 | 34.3% |
+| 2048 | 721 | 35.2% |
+| 4096 | 1476 | 36.0% |
+| 8192 | 3012 | 36.8% |
+| 16384 | 6130 | 37.4% |
+| 32768 | 12450 | 38.0% |
+| 65536 | 25241 | 38.5% |
+| 131072 | 51105 | 39.0% |
+| 262144 | 103358 | 39.4% |
+| 524288 | 208840 | 39.8% |
 
-The increments (6.3, 6.2, 3.1, 2.4, 1.5, 1.2 percentage points) shrink
-roughly geometrically, suggesting convergence to a limit somewhere around
-35–40% as `k → ∞` — **not** the full ~50% observed empirically. So this
-"guaranteed algebraic merge" mechanism appears to account for a large
-fraction, but not all, of the classical adjacent-agreement phenomenon; the
-remainder presumably comes from pairs whose total stopping times coincide
-without their trajectories ever literally merging (harder to prove, not yet
-understood).
+The increments shrink with a ratio that stabilizes around 0.92–0.93 (not
+approaching 1), so this does **not** look like it converges to the full
+~50% seen empirically. Extrapolating geometrically from the latest points
+gives a limit of roughly **44–46%** — i.e. provable algebraic merging
+appears to account for the large majority (~90%) of the classical
+adjacent-agreement rate, but a residual few percentage points likely come
+from a different, still-unexplained mechanism (pairs whose total stopping
+times coincide without their trajectories ever literally merging).
 
 ## 5c. Synthesis: it's all about how "simple" x's own trajectory is
 
