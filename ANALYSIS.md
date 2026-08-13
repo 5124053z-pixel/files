@@ -15,6 +15,7 @@ instructive than the result.
 | Does the 1997 chain show unusual behavior? | Yes, but not because it is 1997 |
 | Is the effect real? | Yes, z = −3.52 at 1200 digits with matched sample sizes |
 | Is it specific to 1997? | No. It appears in repeated-digit numbers generally |
+| Do slow-falling families exist? | Yes, but only visible in base 2, not base 10 |
 | Is the cause understood? | **No** |
 | Does it bear on the Collatz conjecture? | **No** — see "Why this is not a lead" |
 
@@ -128,12 +129,56 @@ the ratio, for the same reason it failed to explain the repeated-digit
 effect: the orbit's residues equalize within a few steps, so a condition on
 `n` alone washes out.
 
-No slow-falling family was found. Note that none of the tested block widths
-came out *above* the random baseline either — every significant deviation in
-the table above is negative. Whether a construction with r < 2 sustained over
-a whole orbit exists is open, but it would have to constrain the trajectory
-rather than just the starting value, and that is a much harder thing to
-arrange.
+No slow-falling family was found *in base 10*, and every significant
+deviation among decimal block widths was negative. That turned out to be an
+artifact of the base — see below.
+
+## Binary is the right base, and it produces slow-falling families
+
+Repeating a digit block in base 10 is the wrong construction: the map divides
+by 2, so structure should be imposed in base 2. Redone with `n` built by
+repeating a `w`-bit pattern to 1200 bits, and the ratio measured against
+`log2(n)` rather than a decimal digit count:
+
+```
+steps/bit for a random orbit = 3 / log2(4/3) = 7.2283
+```
+
+Measured, with the degenerate all-ones pattern excluded (see caveat below),
+against a random baseline of 7.1149 (n = 40, sigma = 0.2918):
+
+| width w | mean | median | seeds | z | verdict |
+|---|---|---|---|---|---|
+| random | 7.1149 | 7.1030 | 40 | — | — |
+| 3 | 7.8044 | 7.7973 | 6 | +5.79 | **slow** |
+| 4 | 5.7978 | 5.3841 | 14 | −16.89 | **fast** |
+| 5 | 7.7026 | 7.6663 | 20 | +9.01 | **slow** |
+| 6 | 7.0835 | 7.4896 | 18 | −0.46 | none |
+| 8 | 7.4333 | 7.8297 | 18 | +4.63 | **slow** |
+| 10 | 8.2120 | 8.2252 | 20 | +16.82 | **slow** |
+| 12 | 7.3378 | 7.2836 | 20 | +3.42 | **slow** |
+| 16 | 7.0866 | 7.0519 | 17 | −0.40 | none |
+| 20 | 7.1643 | 7.2246 | 16 | +0.68 | none |
+| 24 | 7.1401 | 6.9595 | 18 | +0.37 | none |
+
+So slow-falling families do exist — widths 3, 5, 8, 10 and 12 all sit
+significantly above the random baseline, with w = 10 at z = +16.82. The
+base-10 experiment found only fast families because repeating decimal digits
+imposes no clean 2-adic structure; in binary both signs appear immediately.
+
+Width 4 is the striking outlier in the other direction, and its median
+(5.3841) is well below its mean, so it is not one stray value driving it.
+
+**Caveat on two degenerate patterns.** The all-ones pattern gives
+`2^1200 − 1` regardless of `w`, so it was being counted once per width as if
+it were a different number each time, at 13.1517 — inflating every mean.
+It is excluded above. Separately, `p = 0101` at w = 4 gives exactly
+`(2^1200 − 1)/3`, whose orbit collapses in 1201 steps for a ratio of 1.0022;
+it is genuine, not an artifact, and is part of why width 4 is extreme.
+
+This changes the earlier conclusion. Whether a family can be *sustained*
+slow — pushed far enough above baseline to bear on convergence at all — is
+still open, and the mechanism is no better understood here than in base 10.
 
 ## Why this is not a lead on the conjecture
 
@@ -194,11 +239,16 @@ matches.
 
 Not continuing the searches. In order of value:
 
-1. **Explain the elevated r.** The mechanism behind repeated-digit numbers
-   having r = 2.013 is open, and the non-monotonicity in block width (strong
-   at 1, 3, 4; absent at 2, 5, 6) is a concrete, self-contained puzzle.
-   Likely tractable with congruence arguments; would need the 2-adic
-   structure of `x -> x*10^w + s` examined properly.
+1. **Explain the width dependence in binary.** Widths 3, 5, 8, 10, 12 fall
+   slow; width 4 falls very fast; 6, 16, 20, 24 show nothing. This is a
+   concrete, self-contained puzzle with a clean algebraic setting: a number
+   built from a repeated `w`-bit pattern is `p * (2^{wk} − 1)/(2^w − 1)`, so
+   `2^w − 1` is the natural object to look at. The obvious first guess was
+   tested and **fails**: whether 3 divides `2^w − 1` does not track the
+   observed behavior (w = 8, 10, 12 are all divisible and slow, but so are
+   w = 16, 20, 24, which show nothing; w = 3 and 5 are not divisible and are
+   slow). Whatever governs this is subtler. Start here rather than with the
+   base-10 version, which lacked this structure entirely.
 2. **Read the literature.** Lagarias's annotated bibliography, Terras (1976),
    Tao (2019). The recurring lesson of this repository is that plausible
    ideas here are decades old, and reading is faster than rediscovering.
