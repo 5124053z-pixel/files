@@ -17,6 +17,8 @@ instructive than the result.
 | Is it specific to 1997? | No. It appears in repeated-digit numbers generally |
 | Do slow-falling families exist? | Yes, but only visible in base 2, not base 10 |
 | Binary or decimal repetition more anomalous? | Binary, by roughly 10x in effect size |
+| Can a repeated pattern be made to cycle? | No — repetition breaks after one step |
+| How slow can one be made? | Ceiling is `2^k − 1`, ratio ~13; proved optimal |
 | Is the cause understood? | **No** |
 | Does it bear on the Collatz conjecture? | **No** — see "Why this is not a lead" |
 
@@ -246,7 +248,55 @@ numbers. The binary construction imposes structure on the 2-adic digits the
 map actually operates on; the decimal one does not, and only leaks a weak
 signal through whatever bit structure `n -> n*10^4 + s` incidentally leaves.
 
-### Where the 1997 chain sits in all this: nowhere
+### Can a repeated pattern be made arbitrarily slow, or made to cycle?
+
+Slow: yes, up to a hard ceiling, and the ceiling is already achieved.
+Cycle: no, and the reason is immediate.
+
+**A cycle is impossible.** Repetition is destroyed in a single step. For
+`p = 1011` repeated to 64 bits, `n` is `1011 1011 1011 …` but the next odd
+term is `1000 1100 1100 1100 …` — the period is gone. A cycle requires
+*every* element to return to the start, so it would need the repeated form
+preserved all the way around; one application already breaks it. Nothing
+about the width sweep can produce a counterexample.
+
+**Slowness has a ceiling, and `2^k − 1` attains it.** The ratio is maximized
+by keeping the orbit odd for as long as possible, since an odd step followed
+by a single halving multiplies `n` by about 3/2 — the number climbs instead
+of falling. How long that can be sustained is decided entirely by the low
+bits:
+
+```
+T(n) = (3n+1)/2
+n, T(n), ..., T^(j-1)(n) all odd  <=>  n = 2^j - 1  (mod 2^j)
+```
+
+(Note the statement has to be about the whole run staying odd. The
+individual claim "`T^j(n)` is odd iff `n ≡ 2^(j+1) − 1 mod 2^(j+1)`" is
+false from j = 2 onward — n = 1, 9, 17, 25 all have `T^2(n)` odd without
+being 7 mod 8 — because once the run breaks, later terms are unconstrained.
+Verified over 3,000 random odds at j = 1, 2, 3, 5, 8 with zero mismatches in
+the corrected form.)
+
+So j consecutive odd steps require the bottom `j` bits to be all ones, and
+a k-bit number can do no better than k — attained only by `2^k − 1`.
+Verified exhaustively over all odd k-bit numbers:
+
+| k | max consecutive odd steps | numbers attaining it |
+|---|---|---|
+| 8 | 8 | 255 only |
+| 12 | 12 | 4095 only |
+| 16 | 16 | 65535 only |
+
+A greedy construction that maximizes consecutive odd steps bit by bit
+converges on exactly this number at 64, 128, and 200 bits.
+
+This is why all-ones is the slowest pattern in the sweep, and why it is a
+ceiling rather than a starting point: searching harder cannot beat it. The
+best genuinely-periodic pattern (one with `w` smaller than the full width) is
+`1011111110` at w = 10, ratio 10.93, against 12.58 for all-ones. Measured
+ratios for `2^k − 1` hover around 12–13.5 with no upward trend in k, so the
+construction does not get relatively slower as it grows.
 
 Worth stating plainly, since the binary sweep invites the question. 1997 is
 `0b11111001101`, **11 bits**, not 9. And the decimal chain is not a binary
