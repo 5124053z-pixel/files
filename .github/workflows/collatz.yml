@@ -39,11 +39,27 @@ jobs:
       - name: 依存関係をインストール
         run: pip install -r requirements.txt
 
-      # 時間配分: 探索5時間15分 + 1997探索10分 + セットアップ/コミット ≒ 5時間30分。
-      # ジョブ上限6時間・timeout-minutes 350 に対して十分な余裕を確保する。
-      - name: キエーザ数の探索を実行（5時間15分の制限付き）
+      # 時間配分: ループ実在探索3時間 + ランダム探索2時間 + 1997探索10分
+      #           + セットアップ/コミット ≒ 5時間20分。
+      # ジョブ上限6時間・timeout-minutes 350 に対して余裕を確保する。
+      #
+      # ランダム探索を5時間15分から2時間に減らしている。1026桁の空間に対して
+      # 累計2,953万個（割合 10^-1019）しか見ておらず、記録更新も2026-08-03を
+      # 最後に止まっているため、時間を割く価値が薄い。空いた分をループ探索に回す。
+
+      # collatz_cycle_search.py はここでは実行しない。
+      # 候補 (k,S) は log2(3) の連分数だけから決まる決定的な結果で、
+      # 何度回しても同じ18件が出るだけ。結果は collatz_cycle_hunt.py の
+      # TARGETS に反映済みなので、手元で必要になったときに実行すればよい。
+
+      - name: ループ実在探索を実行（3時間の制限付き）
         env:
-          COLLATZ_MAX_RUNTIME_SECONDS: "18900"  # 5時間15分
+          COLLATZ_MAX_RUNTIME_SECONDS: "10800"  # 3時間
+        run: python collatz_cycle_hunt.py
+
+      - name: キエーザ数の探索を実行（2時間の制限付き）
+        env:
+          COLLATZ_MAX_RUNTIME_SECONDS: "7200"  # 2時間
         run: python collatz_background_search.py
 
       - name: 1997継ぎ足しの探索を実行（最大10分の制限付き）
@@ -59,7 +75,9 @@ jobs:
           git config user.email "collatz-bot@users.noreply.github.com"
 
           for f in collatz_checkpoint.json collatz_records.log collatz_ANOMALY.log \
-                   collatz_1997_checkpoint.json collatz_1997_records.log collatz_1997_ANOMALY.log; do
+                   collatz_1997_checkpoint.json collatz_1997_records.log collatz_1997_ANOMALY.log \
+                   collatz_cycle_checkpoint.json collatz_cycle_records.log collatz_cycle_ANOMALY.log \
+                   collatz_hunt_checkpoint.json collatz_hunt_records.log collatz_hunt_FOUND.log; do
             if [ -f "$f" ]; then git add "$f"; fi
           done
 
