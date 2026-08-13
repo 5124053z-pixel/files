@@ -43,7 +43,12 @@ ANOMALY_FILE = "collatz_1997_ANOMALY.log"
 BATCH_SIZE = 20
 SLEEP_SECONDS = 1.0
 NICE_LEVEL = 19
-MAX_STEPS = 10_000_000
+# 異常判定の閾値は「桁数 × STEPS_PER_DIGIT_LIMIT」で決める。
+# 収束までのステップ数は桁数にほぼ比例して増える（実測: 1桁あたり約23ステップ、
+# 最大でも29.7）ため、固定値にすると桁が伸びただけで異常扱いになってしまう。
+# 100は実測値の3倍以上の余裕がある。
+STEPS_PER_DIGIT_LIMIT = 100
+MIN_MAX_STEPS = 10_000   # 桁数が少ないうちの下限
 PRINT_EVERY = 100   # コンソールに進捗を表示する頻度（この回数ごとに1回だけ表示。結果は毎回records.logに保存される）
 MAX_RUNTIME_SECONDS = None  # Noneなら無制限（PCで動かす用）。GitHub Actionsではワークフロー側から上書きする
 if _env_runtime:
@@ -112,7 +117,12 @@ def append_1997(n):
         return 1997 * (10 ** digits) + n
 
 
-def collatz_steps(n, max_steps=MAX_STEPS):
+def step_limit_for(n):
+    """nの桁数に応じた異常判定の閾値を返す"""
+    return max(MIN_MAX_STEPS, len(str(n)) * STEPS_PER_DIGIT_LIMIT)
+
+
+def collatz_steps(n, max_steps=None):
     """コラッツ数列が1に到達するまでのステップ数と、途中の最大値を返す。
 
     n mod 2^k だけで次のkステップ分の変換をまとめて計算する「kステップテーブル」と、
@@ -120,6 +130,8 @@ def collatz_steps(n, max_steps=MAX_STEPS):
     （注: kステップ単位でしか値を見ないため、max_valはジャンプの合間の
     真の最大値を見逃すことがあり、わずかに過小評価される場合がある）
     """
+    if max_steps is None:
+        max_steps = step_limit_for(n)
     m = _mpz(n)
     steps = 0
     max_val = n
@@ -141,9 +153,17 @@ def collatz_steps(n, max_steps=MAX_STEPS):
 
 
 def load_checkpoint():
+    """チェックポイントを読み込む。
+
+    currentは文字列として保存する。JSONの数値として持つと、読み込み側が
+    sys.set_int_max_str_digits()を呼んでいない限り、Python 3.11以降の
+    整数⇔文字列変換の桁数制限（既定4300桁）に引っかかって例外になるため。
+    （旧形式のintで保存されたファイルもそのまま読める）
+    """
     if os.path.exists(CHECKPOINT_FILE):
         with open(CHECKPOINT_FILE, "r") as f:
             data = json.load(f)
+        data["current"] = int(data["current"])
         print(f"チェックポイントを読み込みました: {data['iteration']}回目, "
               f"n={str(data['current'])[:20]}...({len(str(data['current']))}桁)")
         return data
@@ -155,7 +175,7 @@ def load_checkpoint():
 
 def save_checkpoint(data):
     with open(CHECKPOINT_FILE, "w") as f:
-        json.dump(data, f)
+        json.dump({"current": str(data["current"]), "iteration": data["iteration"]}, f)
 
 
 def log_result(iteration, n, steps, max_val):
@@ -168,9 +188,11 @@ def log_result(iteration, n, steps, max_val):
 
 
 def log_anomaly(n, steps):
+    digits = len(str(n))
     with open(ANOMALY_FILE, "a") as f:
         f.write(
             f"{time.strftime('%Y-%m-%d %H:%M:%S')} | "
+            f"digits={digits} | limit={step_limit_for(n):,} | "
             f"n={n} が {steps:,}ステップを超えても1に到達しませんでした。"
             f"ループまたは発散の可能性があります。要確認。\n"
         )

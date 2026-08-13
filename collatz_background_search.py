@@ -40,7 +40,11 @@ CHECKPOINT_FILE = "collatz_checkpoint.json"
 RECORDS_FILE = "collatz_records.log"
 ANOMALY_FILE = "collatz_ANOMALY.log"  # 異常（ループ・発散の疑い）を検知したときのログ
 NICE_LEVEL = 19                 # プロセス優先度（Unix系。19が最も低い=他を邪魔しない）
-MAX_STEPS = 10_000_000          # これを超えても1に到達しない場合は「異常」として扱い、無限ループを防ぐ
+# 異常判定の閾値は「桁数 × STEPS_PER_DIGIT_LIMIT」で決める。
+# 収束までのステップ数は桁数にほぼ比例して増えるため、固定値にすると
+# 桁数を増やしたときに反例でもないのに異常扱いになってしまう。
+STEPS_PER_DIGIT_LIMIT = 100
+MIN_MAX_STEPS = 10_000          # 桁数が少ないうちの下限
 CACHE_MAX_SIZE = 500_000        # 軌道の「合流」を利用した高速化キャッシュの最大サイズ
 DIGITS = len(str(START_NUMBER))  # 新しくランダムな数を選ぶときに使う桁数
 _env_runtime = os.environ.get("COLLATZ_MAX_RUNTIME_SECONDS")
@@ -110,19 +114,31 @@ def lower_priority():
                   "動作には影響ありません。")
 
 
-def collatz_steps(n, max_steps=MAX_STEPS):
+def step_limit_for(n):
+    """nの桁数に応じた異常判定の閾値を返す"""
+    return max(MIN_MAX_STEPS, len(str(n)) * STEPS_PER_DIGIT_LIMIT)
+
+
+def collatz_steps(n, max_steps=None):
     """コラッツ数列が1に到達するまでのステップ数と、途中の最大値を返す。
 
-    3つの高速化を組み合わせている:
-    1. 合流キャッシュ: 近くの数どうしは軌道が「合流」しやすい性質を利用し、
-       一度計算した軌道の後半部分をキャッシュして再利用する。
-    2. kステップテーブル: n mod 2^k だけで、次のkステップ分の変換を
+    高速化:
+    1. kステップテーブル: n mod 2^k だけで、次のkステップ分の変換を
        1回の掛け算・足し算・シフトにまとめて一気に進める。
-    3. gmpy2: 利用可能なら、巨大整数演算そのものを高速なライブラリに委譲する。
+    2. gmpy2: 利用可能なら、巨大整数演算そのものを高速なライブラリに委譲する。
+    3. 合流キャッシュ: 一度計算した軌道の後半部分を再利用する。ただし現在の
+       探索は毎回独立にランダムな数を選ぶため、異なる開始点の軌道が同じ値で
+       合流することは事実上なく、このキャッシュはほとんど効かない
+       （連番を走査していた頃の名残）。
+
+    注: kステップ単位でしか値を見ないため、max_valはジャンプの合間の
+    真の最大値を見逃すことがあり、わずかに過小評価される場合がある。
 
     max_stepsを超えても1に到達しない場合は、無限ループを避けるため打ち切り、
     (steps, max_val, hit_limit=True) を返す。通常時は hit_limit=False。
     """
+    if max_steps is None:
+        max_steps = step_limit_for(n)
     if n == 1:
         return 0, 1, False
 
@@ -196,6 +212,7 @@ def log_anomaly(n, steps):
     with open(ANOMALY_FILE, "a") as f:
         f.write(
             f"{time.strftime('%Y-%m-%d %H:%M:%S')} | "
+            f"digits={len(str(n))} | limit={step_limit_for(n):,} | "
             f"n={n} が {steps:,}ステップを超えても1に到達しませんでした。"
             f"ループまたは発散の可能性があります。要確認。\n"
         )
@@ -227,7 +244,7 @@ def main():
             steps, max_val, hit_limit = collatz_steps(n)
 
             if hit_limit:
-                # MAX_STEPSを超えても1に到達しなかった → ループ/発散の疑い
+                # 桁数に応じた閾値を超えても1に到達しなかった → ループ/発散の疑い
                 # 無限ループにせず、ここで安全に停止して調査できるようにする
                 log_anomaly(n, steps)
                 print("=" * 60)
