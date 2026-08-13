@@ -15,8 +15,12 @@ permissions:
 jobs:
   run-collatz:
     runs-on: ubuntu-latest
-    # GitHub Actionsの1ジョブあたりの上限は6時間。安全マージンを取って5時間45分に設定
-    timeout-minutes: 360
+    # 同じワークフローが重なるとpush競合の原因になるので、前の実行が終わるまで待つ
+    concurrency:
+      group: collatz-search
+      cancel-in-progress: false
+    # GitHub Actionsの1ジョブあたりの上限は6時間。コミット処理ぶんの余裕を残して5時間50分に設定
+    timeout-minutes: 350
 
     steps:
       - name: リポジトリをチェックアウト
@@ -30,23 +34,47 @@ jobs:
       - name: 依存関係をインストール
         run: pip install -r requirements.txt
 
-      - name: キエーザ数の探索を実行（5時間45分の制限付き）
+      # 時間配分: 探索5時間15分 + 1997探索10分 + セットアップ/コミット ≒ 5時間30分。
+      # ジョブ上限6時間・timeout-minutes 350 に対して十分な余裕を確保する。
+      - name: キエーザ数の探索を実行（5時間15分の制限付き）
         env:
-          COLLATZ_MAX_RUNTIME_SECONDS: "20700"  # 5時間45分
+          COLLATZ_MAX_RUNTIME_SECONDS: "18900"  # 5時間15分
         run: python collatz_background_search.py
 
-      - name: 1997継ぎ足しの探索を実行（残り時間ぶん、最大10分の制限付き）
+      - name: 1997継ぎ足しの探索を実行（最大10分の制限付き）
         env:
           COLLATZ_MAX_RUNTIME_SECONDS: "600"  # 10分（お試し用。増やしたければ調整してください）
         run: python collatz_1997_chain.py
 
+      # 探索ステップが失敗・タイムアウトしても、そこまでの進捗は必ず保存する
       - name: 進捗をリポジトリにコミット
+        if: always()
         run: |
           git config user.name "collatz-bot"
           git config user.email "collatz-bot@users.noreply.github.com"
+
           for f in collatz_checkpoint.json collatz_records.log collatz_ANOMALY.log \
                    collatz_1997_checkpoint.json collatz_1997_records.log collatz_1997_ANOMALY.log; do
-            [ -f "$f" ] && git add "$f"
+            if [ -f "$f" ]; then git add "$f"; fi
           done
-          git commit -m "自動進捗保存 $(date -u '+%Y-%m-%d %H:%M UTC')" || echo "変更なし、コミットをスキップ"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "変更なし、コミットをスキップ"
+            exit 0
+          fi
+
+          git commit -m "自動進捗保存 $(date -u '+%Y-%m-%d %H:%M UTC')"
+
+          # 実行中にリモートが進んでいるとpushが弾かれるため、rebaseしてリトライする
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "push成功"
+              exit 0
+            fi
+            echo "push失敗（$i回目）。リモートの変更を取り込んで再試行します"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            sleep $((i * 5))
+          done
+
+          echo "5回試行してもpushできませんでした" >&2
+          exit 1
