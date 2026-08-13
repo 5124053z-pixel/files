@@ -309,6 +309,42 @@ ratio 7.5077, z = +0.72 — unremarkable. Width 11 as a whole is flat
 (z = −0.33). Width 9, which would be the relevant one if 1997 were a 9-bit
 value, is genuinely fast (z = −4.35), but 1997 is not a 9-bit value.
 
+### A cycle *containing* a repeated number — and why searching for one is pointless
+
+The impossibility above is narrower than it sounds: it rules out a cycle whose
+every element stays periodic in binary, because periodicity dies in one step.
+It says nothing about a cycle with *one* repeated-pattern element, which needs
+no structure preserved at all. That is a real question, and cheap to test —
+start at the repeated number and see whether the orbit returns to it.
+
+Done exhaustively: 1,804,011 distinct repeated numbers, bit lengths 496 to
+1200, all widths w ≤ 16. Zero cycles. But the search was a mistake, and the
+reasons are worth more than the result:
+
+- **The search space has no justification.** A cycle's minimum element
+  satisfies `n_0 = C/(2^S − 3^k)`, and nothing in that equation asks for
+  binary periodicity. Restricting to repeated numbers narrows nothing — it
+  picks an arbitrary sliver.
+- **The sliver is vanishingly thin.** At 1200 bits there are roughly `10^10`
+  repeated numbers against `10^361` odd numbers: a fraction of `10^-351`.
+  Testing 1.8 million of them is buying 1.8 million lottery tickets.
+- **Pruning meant almost nothing was examined.** Rejecting as soon as the
+  orbit drops below `n_0` disqualifies most candidates within a few steps.
+  It is a very large number of very shallow tests.
+
+This is the same error as the random search that started this repository,
+in different clothes: a space that feels constrained because it is easy to
+describe, but is not constrained in any way that matters.
+
+The productive version runs the other direction — not "are cycle elements
+periodic?" but "what does the structure equation *force* about `n_0`'s low
+bits?" That is derivable rather than searchable, and the first exponent
+already pins them: if `3n_0 + 1` is divisible by `2^{e_0}` then
+`n_0 ≡ −1/3 (mod 2^{e_0})`, giving `n_0 ≡ 1 (mod 4)` at `e_0 = 2`,
+`5 (mod 8)` at `e_0 = 3`, `5 (mod 16)` at `e_0 = 4`, and so on along the
+exponent sequence. Constraints obtained this way bind every cycle, not a
+hand-picked family.
+
 ## Why this is not a lead on the conjecture
 
 Three independent reasons, any one of which is sufficient.
