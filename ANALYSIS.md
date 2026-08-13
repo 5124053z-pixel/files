@@ -161,6 +161,10 @@ against a random baseline of 7.1149 (n = 40, sigma = 0.2918):
 | 20 | 7.1643 | 7.2246 | 16 | +0.68 | none |
 | 24 | 7.1401 | 6.9595 | 18 | +0.37 | none |
 
+Measured separately at 1206/1210 bits so the width divides evenly:
+w = 9 gives 6.7617 (z = −4.35, **fast**) and w = 11 gives 7.1984
+(z = −0.33, none).
+
 So slow-falling families do exist — widths 3, 5, 8, 10 and 12 all sit
 significantly above the random baseline, with w = 10 at z = +16.82. The
 base-10 experiment found only fast families because repeating decimal digits
@@ -173,12 +177,52 @@ Width 4 is the striking outlier in the other direction, and its median
 `2^1200 − 1` regardless of `w`, so it was being counted once per width as if
 it were a different number each time, at 13.1517 — inflating every mean.
 It is excluded above. Separately, `p = 0101` at w = 4 gives exactly
-`(2^1200 − 1)/3`, whose orbit collapses in 1201 steps for a ratio of 1.0022;
-it is genuine, not an artifact, and is part of why width 4 is extreme.
+`(2^1200 − 1)/3`, ratio 1.0022; it is genuine, not an artifact, and is part
+of why width 4 is extreme.
+
+### The two outliers are explained, and they are the same phenomenon
+
+Both extremes have exact closed-form reasons, and they sit at opposite ends
+of one axis: how long the orbit can be forced to stay odd.
+
+**`0101…01` = `(2^k − 1)/3`, the fastest possible.** For this n,
+`3n + 1 = 2^k` exactly — verified as an integer identity at k = 1200. The
+orbit therefore takes one odd step to land precisely on a power of two, then
+halves k times and is done: `1 + 1200 = 1201` steps, matching the measured
+value. Nothing about the trajectory is random; it is the shortest route a
+1200-bit number can take.
+
+**`111…1` = `2^k − 1`, the slowest.** Here `3n + 1 = 3·2^k − 2 =
+2(3·2^{k−1} − 1)`, so exactly one division returns an odd number, and the
+pattern repeats. Each odd-plus-one-division cycle multiplies n by about 3/2,
+so the number *grows*. Traced over the first eight steps the bit length goes
+1200 → 1202 → 1201 → 1203 → 1202 → 1203 → 1202 → 1204: a clear upward drift
+where a typical orbit drifts down. It takes 15,782 steps, ratio 13.1517.
+
+So the governing quantity is how many consecutive odd steps the bit pattern
+sustains — all-ones maximizes it, alternating 01 collapses it in one move.
+That is the right intuition for the width dependence too, but it does not
+finish the job: bucketing w = 8 patterns by popcount gives only a +0.177
+correlation with the ratio (means rise from 7.26 at three 1-bits to 7.97 at
+six, but with wide overlap). The sign is right and the effect is real;
+popcount alone is too crude to predict which widths deviate.
 
 This changes the earlier conclusion. Whether a family can be *sustained*
 slow — pushed far enough above baseline to bear on convergence at all — is
 still open, and the mechanism is no better understood here than in base 10.
+
+### Where the 1997 chain sits in all this: nowhere
+
+Worth stating plainly, since the binary sweep invites the question. 1997 is
+`0b11111001101`, **11 bits**, not 9. And the decimal chain is not a binary
+repetition at all: `n -> n*10000 + 1997` with `10000 = 2^4 · 625` produces no
+periodic bit pattern, as inspecting successive terms confirms. The chain
+belongs to a different family than anything in the width table.
+
+Taking 1997 as an 11-bit *binary* pattern instead and repeating it gives
+ratio 7.5077, z = +0.72 — unremarkable. Width 11 as a whole is flat
+(z = −0.33). Width 9, which would be the relevant one if 1997 were a 9-bit
+value, is genuinely fast (z = −4.35), but 1997 is not a 9-bit value.
 
 ## Why this is not a lead on the conjecture
 
