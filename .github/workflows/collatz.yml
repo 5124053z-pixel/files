@@ -1,11 +1,15 @@
 name: Collatz Background Search
 
 # 実行タイミング:
-# - 6時間ごとに自動実行（cronはUTC基準。日本時間からは9時間後ろにずれます）
+# - 8時間ごとに自動実行（cronはUTC基準。日本時間からは9時間後ろにずれます）
 # - Actionsタブから手動でも実行可能（workflow_dispatch）
+#
+# 6時間間隔だとジョブ長（約5時間55分）とほぼ同じため、GitHubのcron遅延で
+# 次の実行が前の実行の終了前に始まり、古いmainを掴んだままpushして競合していた。
+# ジョブ長に対して十分な間隔を空ける。
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */8 * * *"
   workflow_dispatch:
 
 # checkpointやログをリポジトリにコミットし直すための書き込み権限
@@ -15,7 +19,8 @@ permissions:
 jobs:
   run-collatz:
     runs-on: ubuntu-latest
-    # 同じワークフローが重なるとpush競合の原因になるので、前の実行が終わるまで待つ
+    # cron間隔を空けたうえでの保険。手動実行が自動実行と重なった場合などに、
+    # 前の実行が終わるまで待たせてpush競合を防ぐ
     concurrency:
       group: collatz-search
       cancel-in-progress: false
