@@ -13,9 +13,10 @@ instructive than the result.
 | Question | Answer |
 |---|---|
 | Does the 1997 chain show unusual behavior? | Yes, but not because it is 1997 |
-| Is the effect real? | Yes, z = −3.52 at 1200 digits with matched sample sizes |
+| Is the effect real? | In decimal, weakly (z = −3.28 at best, and it vanishes if size is matched by bit length instead). In binary, strongly |
 | Is it specific to 1997? | No. It appears in repeated-digit numbers generally |
 | Do slow-falling families exist? | Yes, but only visible in base 2, not base 10 |
+| Binary or decimal repetition more anomalous? | Binary, by roughly 10x in effect size |
 | Is the cause understood? | **No** |
 | Does it bear on the Collatz conjecture? | **No** — see "Why this is not a lead" |
 
@@ -75,6 +76,10 @@ random, 8 draws x 20    : 24.0017 +/- 0.1843
 The 1997 chain sits inside this family and is not distinguished within it.
 Across widths and seeds it is unremarkable; at some sample points it is the
 *highest* of the seeds tested, not the lowest.
+
+This decimal effect turns out to be weaker than it looks here, and partly an
+artifact of holding *decimal* length fixed — see "Which construction is more
+anomalous" below, where matching on bit length instead drops it to z = −0.64.
 
 ### Mechanism: partially identified, not explained
 
@@ -210,6 +215,36 @@ popcount alone is too crude to predict which widths deviate.
 This changes the earlier conclusion. Whether a family can be *sustained*
 slow — pushed far enough above baseline to bear on convergence at all — is
 still open, and the mechanism is no better understood here than in base 10.
+
+### Which construction is more anomalous: binary, decisively
+
+The two families were never compared on the same footing — the decimal work
+measured `steps / decimal-digit` at fixed decimal length, the binary work
+measured `steps / log2(n)` at fixed bit length. Redone with `log2(n)` as the
+denominator throughout and 40 seeds per family:
+
+| construction | mean | random baseline | difference | z |
+|---|---|---|---|---|
+| decimal, 4-digit block, 400 digits | 7.1281 | 7.2003 | −0.072 | −0.85 |
+| decimal, 4-digit block, 800 digits | 6.9963 | 7.1570 | −0.161 | −2.56 |
+| decimal, 4-digit block, 1200 digits | 7.0289 | 7.1970 | −0.168 | −3.28 |
+| **binary, w = 10, 1200 bits** | **8.0064** | 7.2473 | **+0.759** | **+3.54** |
+| **binary, w = 4, 1200 bits** | **5.7978** | 7.3019 | **−1.504** | **−12.87** |
+
+The binary effect is an order of magnitude larger in the quantity that
+matters — the deviation itself. Decimal chains shift the ratio by 0.07–0.17;
+binary widths shift it by 0.76 (w = 10) and 1.50 (w = 4). The z-scores are
+closer than the deviations because the binary families also have wider
+spread, but on effect size binary wins outright.
+
+The decimal effect is also fragile in a way the binary one is not. Holding
+*bit* length fixed instead of decimal length collapses it to z = −0.64 —
+statistically nothing — while the same change leaves the binary results
+untouched. So part of what the decimal comparison was detecting is an
+artifact of what "same size" was taken to mean, not a property of the
+numbers. The binary construction imposes structure on the 2-adic digits the
+map actually operates on; the decimal one does not, and only leaks a weak
+signal through whatever bit structure `n -> n*10^4 + s` incidentally leaves.
 
 ### Where the 1997 chain sits in all this: nowhere
 
