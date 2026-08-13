@@ -235,7 +235,8 @@ def main():
                 state["current"] = n
                 state["iteration"] = iteration
                 save_checkpoint(state)
-                return
+                # 異常終了させてGitHub Actionsのジョブを失敗させ、通知を飛ばす
+                sys.exit(1)
 
             iteration += 1
             log_result(iteration, n, steps, max_val)

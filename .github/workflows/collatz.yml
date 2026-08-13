@@ -1,25 +1,21 @@
 name: Collatz Background Search
 
-# 実行タイミング: 手動実行のみ（Actionsタブの Run workflow から）
+# 実行タイミング:
+# - 8時間ごとに自動実行（cronはUTC基準。日本時間からは9時間後ろにずれます）
+# - Actionsタブから手動でも実行可能（workflow_dispatch）
 #
-# 自動実行（8時間ごとのcron）は停止した。理由は ANALYSIS.md の通りで、
-# どの探索も期待値が事実上ゼロだったため:
-#   - ランダム探索は 10^1026 の空間の 10^-1019 しか見ておらず、
-#     記録更新も2026-08-03で止まっている
-#   - ループ実在探索は最良の候補(k=306)でも1年で 10^-136
-#   - 1997継ぎ足しはランダムな数と統計的に区別がつかない
+# 8時間間隔は必須。6時間だとジョブ長（約5時間55分）とほぼ同じため、
+# GitHubのcron遅延で次の実行が前の実行の終了前に始まり、
+# 古いmainを掴んだままpushして競合する。
 #
-# 再開したくなったら、下に以下を戻せばよい:
-#   schedule:
-#     - cron: "0 */8 * * *"
-# （その際は8時間間隔を守ること。6時間だとジョブ長5時間55分とほぼ同じで、
-#   cron遅延により実行が重なり、古いmainを掴んだままpushして競合する）
-#
-# なお現状は、探索が何かを発見しても通知は飛ばない。スクリプトは
-# FOUND/ANOMALYログに書いて正常終了(exit 0)するため、ワークフローは
-# 緑のまま終わり、コミットが1つ増えるだけになる。再開するなら
-# 発見時に sys.exit(1) させるなどして、失敗通知が届くようにすること。
+# 通知について:
+# 何か見つかった場合、ジョブをわざと失敗させることでGitHubから
+# 失敗通知メールが届くようにしている（下の「発見チェック」ステップ）。
+# GitHubは成功したワークフローについては通知を送らないため、
+# 「発見＝ジョブ失敗」にするのが最も確実に気づける方法。
 on:
+  schedule:
+    - cron: "0 */8 * * *"
   workflow_dispatch:
 
 # checkpointやログをリポジトリにコミットし直すための書き込み権限
@@ -62,17 +58,23 @@ jobs:
       # 何度回しても同じ18件が出るだけ。結果は collatz_cycle_hunt.py の
       # TARGETS に反映済みなので、手元で必要になったときに実行すればよい。
 
+      # 各探索は continue-on-error にしている。
+      # 発見時スクリプトは sys.exit(1) するが、ここで止めてしまうと
+      # 後続の探索が実行されなくなるため。発見の判定は最後にまとめて行う。
       - name: ループ実在探索を実行（3時間の制限付き）
+        continue-on-error: true
         env:
           COLLATZ_MAX_RUNTIME_SECONDS: "10800"  # 3時間
         run: python collatz_cycle_hunt.py
 
       - name: キエーザ数の探索を実行（2時間の制限付き）
+        continue-on-error: true
         env:
           COLLATZ_MAX_RUNTIME_SECONDS: "7200"  # 2時間
         run: python collatz_background_search.py
 
       - name: 1997継ぎ足しの探索を実行（最大10分の制限付き）
+        continue-on-error: true
         env:
           COLLATZ_MAX_RUNTIME_SECONDS: "600"  # 10分（お試し用。増やしたければ調整してください）
         run: python collatz_1997_chain.py
@@ -111,3 +113,32 @@ jobs:
 
           echo "5回試行してもpushできませんでした" >&2
           exit 1
+
+      # 発見があればここでジョブを失敗させ、GitHubから失敗通知メールを飛ばす。
+      # 成功したワークフローについてGitHubは通知を送らないため、
+      # 「発見＝ジョブ失敗」にしておかないと誰も気づかないまま埋もれる。
+      # ログは直前のステップでコミット済みなので、失敗させても失われない。
+      - name: 発見チェック（見つかっていたら失敗させて通知する）
+        if: always()
+        run: |
+          # collatz_cycle_ANOMALY.log は対象外。あれは
+          # collatz_cycle_search.py が「素朴な議論では棄却できなかった候補」を
+          # 記録するもので、18件出るのが正常。異常の合図ではない
+          # （そもそもそのスクリプトはこのワークフローでは実行していない）。
+          hit=0
+          for f in collatz_hunt_FOUND.log collatz_ANOMALY.log \
+                   collatz_1997_ANOMALY.log; do
+            if [ -s "$f" ]; then
+              echo "::error::$f に記録があります"
+              echo "--- $f ---"
+              cat "$f"
+              hit=1
+            fi
+          done
+
+          if [ "$hit" = "1" ]; then
+            echo "何か見つかっています。上のログを確認してください。" >&2
+            exit 1
+          fi
+
+          echo "発見なし（通常の結果）"

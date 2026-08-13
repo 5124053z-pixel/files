@@ -282,7 +282,10 @@ def main():
                 print(f"  {FOUND_FILE} に記録しました。")
                 print("=" * 72)
                 save_checkpoint(state)
-                return
+                # 異常終了させることでGitHub Actionsのジョブを失敗させ、
+                # 失敗通知メールが届くようにする。正常終了(exit 0)だと
+                # ワークフローが緑のまま終わり、誰も気づかない。
+                sys.exit(1)
 
             if steps_done < k:
                 # 途中で n_0 を下回った = ループになりえない

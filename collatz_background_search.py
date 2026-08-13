@@ -252,7 +252,8 @@ def main():
                 print(f"    {ANOMALY_FILE} に記録し、安全のため探索を停止します。")
                 print("=" * 60)
                 save_checkpoint(state)
-                return
+                # 異常終了させてGitHub Actionsのジョブを失敗させ、通知を飛ばす
+                sys.exit(1)
 
             state["total_checked"] += 1
 
